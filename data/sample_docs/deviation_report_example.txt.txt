@@ -1,0 +1,32 @@
+DEVIATION REPORT
+
+Deviation ID: DEV-2026-014
+Date Opened: 12/05/2026
+Department: Manufacturing
+
+Description:
+During batch manufacturing of Product A123, the granulation temperature exceeded the validated upper limit for approximately 12 minutes.
+
+Immediate Actions Taken:
+- Process paused
+- QA notified immediately
+- Impact assessment initiated
+
+Preliminary Investigation:
+Initial review suggests a sensor calibration drift may have contributed to inaccurate temperature monitoring.
+
+Risk Assessment:
+Potential impact to product quality is considered low pending laboratory analysis.
+
+Corrective Actions:
+- Recalibrate temperature sensor
+- Review maintenance records
+- Retrain operators on escalation procedures
+
+Preventive Actions:
+- Increase calibration frequency
+- Implement automated temperature alerts
+- Add secondary verification checks
+
+Status:
+Open – Investigation Ongoing

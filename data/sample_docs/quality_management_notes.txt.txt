@@ -1,0 +1,54 @@
+PHARMACEUTICAL QUALITY MANAGEMENT NOTES
+
+Good Manufacturing Practice (GMP)
+GMP ensures pharmaceutical products are consistently produced and controlled according to quality standards appropriate for their intended use.
+
+Key GMP Principles:
+- Documentation accuracy
+- Process validation
+- Personnel training
+- Equipment qualification
+- Change control
+- Data integrity
+
+Data Integrity
+Data integrity refers to the completeness, consistency, and accuracy of data throughout its lifecycle.
+
+ALCOA Principles:
+- Attributable
+- Legible
+- Contemporaneous
+- Original
+- Accurate
+
+Expanded ALCOA+ Principles:
+- Complete
+- Consistent
+- Enduring
+- Available
+
+CAPA (Corrective and Preventive Action)
+CAPA is a systematic approach used to identify root causes of quality issues and implement corrective actions to prevent recurrence.
+
+Root Cause Analysis Tools:
+- Fishbone Diagram
+- 5 Whys
+- Pareto Analysis
+
+Common Pharmaceutical Deviations:
+- Temperature excursions
+- Documentation errors
+- Equipment failures
+- Process parameter deviations
+
+Validation
+Validation demonstrates that processes consistently produce results meeting predetermined specifications.
+
+Types of Validation:
+- Process Validation
+- Cleaning Validation
+- Computer System Validation
+- Analytical Method Validation
+
+Audit Readiness
+Maintaining audit-ready documentation is critical in regulated pharmaceutical environments.

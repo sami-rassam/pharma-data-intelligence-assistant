@@ -1,0 +1,3 @@
+Data integrity is essential in regulated pharmaceutical environments. Records should be attributable, legible, contemporaneous, original, accurate, complete, consistent, enduring, and available. Common risks include manual transcription errors, missing audit trails, uncontrolled spreadsheets, delayed documentation, inconsistent naming conventions, and lack of validation checks.
+
+Good reporting practice requires clear ownership, version control, documented review, exception reporting, and regular data quality monitoring. Dashboards should highlight deviations, overdue actions, recurring errors, and high-risk processes.

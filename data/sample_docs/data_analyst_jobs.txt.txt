@@ -1,0 +1,48 @@
+DATA ANALYST ROLE – NHS
+
+Responsibilities:
+- Analyse healthcare datasets to identify trends and insights.
+- Produce dashboards and reports using Power BI.
+- Support operational and strategic decision-making.
+- Ensure data quality and integrity standards are maintained.
+
+Required Skills:
+- SQL
+- Excel
+- Power BI
+- Data cleaning and validation
+- Stakeholder communication
+
+--------------------------------------------
+
+BUSINESS INTELLIGENCE ANALYST – PHARMACEUTICAL COMPANY
+
+Responsibilities:
+- Develop KPI dashboards for manufacturing operations.
+- Analyse production and quality data.
+- Identify process improvement opportunities.
+- Support audit readiness and compliance reporting.
+
+Required Skills:
+- SQL
+- Python
+- Power BI
+- Pharmaceutical industry experience
+- GMP knowledge
+
+--------------------------------------------
+
+DATA ANALYST – UTILITIES SECTOR
+
+Responsibilities:
+- Analyse smart meter and operational datasets.
+- Monitor performance metrics and trends.
+- Produce automated reports and visualisations.
+- Support predictive analytics initiatives.
+
+Required Skills:
+- SQL
+- Python
+- Tableau or Power BI
+- Statistical analysis
+- Data visualisation

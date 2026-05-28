@@ -1,0 +1,36 @@
+PHARMA DATA STRATEGY NOTES
+
+Objectives:
+- Improve manufacturing visibility through dashboard analytics.
+- Reduce manual reporting effort using automation.
+- Strengthen data integrity controls.
+- Support operational decision-making using real-time KPIs.
+
+Current Challenges:
+- Data silos across departments
+- Inconsistent reporting formats
+- Delayed deviation closure
+- Limited audit trail visibility
+- Manual Excel-based reporting processes
+
+Recommended Improvements:
+- Centralised SQL database
+- Automated ETL pipelines
+- Power BI operational dashboards
+- Role-based access controls
+- Real-time alerting for critical deviations
+
+Suggested KPIs:
+- Batch Right First Time
+- OEE
+- CAPA Closure Time
+- Audit Finding Trends
+- Deviation Volume by Department
+- Training Compliance Rates
+
+Potential AI/Analytics Opportunities:
+- Predictive maintenance
+- Deviation trend forecasting
+- NLP-based SOP search assistant
+- Automated anomaly detection
+- Intelligent document classification

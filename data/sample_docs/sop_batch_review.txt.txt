@@ -1,0 +1,50 @@
+STANDARD OPERATING PROCEDURE
+Title: Batch Record Review Process
+Document Number: SOP-QA-001
+Version: 1.0
+Effective Date: 01/05/2026
+Department: Quality Assurance
+
+1. PURPOSE
+To define the procedure for reviewing completed batch manufacturing records to ensure compliance with GMP requirements and internal quality standards.
+
+2. SCOPE
+This procedure applies to all commercial manufacturing batches produced at the facility.
+
+3. RESPONSIBILITIES
+QA Officers are responsible for reviewing batch records.
+Production Supervisors are responsible for ensuring all manufacturing documentation is complete.
+The QA Manager is responsible for final batch disposition approval.
+
+4. PROCEDURE
+
+4.1 Batch Documentation Review
+- Verify all manufacturing steps have been completed.
+- Confirm all entries are legible and signed.
+- Review equipment logbooks for completeness.
+- Ensure deviations are documented appropriately.
+
+4.2 Critical Process Verification
+- Verify temperature and pressure ranges were maintained.
+- Confirm all in-process checks meet specifications.
+- Review yield calculations and reconciliation.
+
+4.3 Data Integrity Checks
+- Verify audit trails where applicable.
+- Ensure no unexplained overwritten entries exist.
+- Confirm compliance with ALCOA principles.
+
+4.4 Deviations
+- Any discrepancies identified during review must be documented.
+- Major deviations require escalation to QA management.
+- CAPA actions must be assigned where necessary.
+
+5. REFERENCES
+- EU GMP Annex 11
+- FDA Data Integrity Guidance
+- Internal Deviation Management SOP
+
+6. ABBREVIATIONS
+GMP = Good Manufacturing Practice
+CAPA = Corrective and Preventive Action
+QA = Quality Assurance
