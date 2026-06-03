@@ -1,10 +1,69 @@
 # Pharma & Data Intelligence Assistant
 
+## Live Demo
+
+[View the deployed Streamlit app](https://sami-rassam-pharma-data-intelligence-assistant-app-r0rsch.streamlit.app/)
+
 ## Project Overview
 
 The Pharma & Data Intelligence Assistant is an agentic RAG application designed to support pharmaceutical, regulatory, data quality, and analytics research.
 
 It combines local document retrieval with live web search and LLM-based answer generation.
+
+## Setup Instructions
+
+Clone the repository:
+
+```bash
+git clone https://github.com/sami-rassam/pharma-data-intelligence-assistant.git
+cd pharma-data-intelligence-assistant
+```
+
+Create and activate a virtual environment:
+
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Create a `.env` file and add your API keys:
+
+```text
+GROQ_API_KEY=your_groq_api_key_here
+TAVILY_API_KEY=your_tavily_api_key_here
+```
+
+Run the app locally:
+
+```bash
+streamlit run app.py
+```
+
+## Docker Instructions
+
+Build the Docker image:
+
+```bash
+docker build -t pharma-data-intelligence-assistant .
+```
+
+Run the container:
+
+```bash
+docker run -p 8501:8501 --env-file .env pharma-data-intelligence-assistant
+```
+
+Then open:
+
+```text
+http://localhost:8501
+```
 
 ## Key Features
 
@@ -92,14 +151,14 @@ The notebook also includes manual evaluation and chunk-size comparison.
 
 ## Future Improvements
 
-- Add ChromaDB comparison
-- Add reranking
+- Improve deployed app performance using persistent vector storage
+- Add source reliability scoring
+- Add reranking to improve retrieval quality
+- Add PDF report export
 - Add user authentication
-- Add persistent vector database
-- Add PDF export
-- Add stronger source validation
 - Add automated evaluation scoring
-- Deploy on Streamlit Community Cloud
+- Add ChromaDB comparison
+- Add persistent chat history
 
 ## Final Reflection
 
