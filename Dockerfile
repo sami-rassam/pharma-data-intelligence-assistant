@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 FROM python:3.11-slim
+=======
+﻿FROM python:3.11-slim
+>>>>>>> f547afc (Update secrets handling and add Dockerfile)
 
 WORKDIR /app
 

@@ -2,6 +2,19 @@ import time
 import streamlit as st
 import pandas as pd
 
+@st.cache_resource
+def build_cached_vectorstore(folders_to_use):
+    all_chunks = []
+
+    for folder in folders_to_use:
+        chunks = load_and_split_documents(folder)
+        all_chunks.extend(chunks)
+
+    if not all_chunks:
+        return None
+
+    return create_vectorstore(all_chunks)
+
 from src.utils import save_uploaded_files
 from src.document_loader import load_and_split_documents
 from src.vectorstore import create_vectorstore, similarity_search
@@ -91,20 +104,16 @@ if run_button:
                 uploaded_folder = save_uploaded_files(uploaded_files)
                 folders_to_use.append(uploaded_folder)
 
-            all_chunks = []
-
-            for folder in folders_to_use:
-                try:
-                    chunks = load_and_split_documents(folder)
-                    all_chunks.extend(chunks)
-                except Exception as error:
-                    st.error(f"Error loading documents from {folder}: {error}")
-
             local_docs = []
 
-            if all_chunks:
-                vectorstore = create_vectorstore(all_chunks)
-                local_docs = similarity_search(vectorstore, query, k=k_value)
+            try:
+                vectorstore = build_cached_vectorstore(tuple(folders_to_use))
+
+                if vectorstore:
+                    local_docs = similarity_search(vectorstore, query, k=k_value)
+
+            except Exception as error:
+                st.error(f"Error building vectorstore: {error}")
 
             web_results = []
 

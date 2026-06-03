@@ -27,5 +27,5 @@ def get_llm(temperature: float = 0.2):
     return ChatGroq(
         groq_api_key=groq_api_key,
         model="llama-3.1-8b-instant",
-        temperature=temperature
-    )
+        temperature=0.1
+    )docker build -t pharma-data-intelligence-assistant .
