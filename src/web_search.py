@@ -1,15 +1,23 @@
 import os
+import streamlit as st
 from dotenv import load_dotenv
 from tavily import TavilyClient
 
 load_dotenv()
 
 
+def get_secret(key: str):
+    """
+    Gets secrets from Streamlit Cloud first, then falls back to local .env.
+    """
+    try:
+        return st.secrets[key]
+    except Exception:
+        return os.getenv(key)
+
+
 def tavily_search(query: str, max_results: int = 5) -> list:
-    """
-    Runs live web search using Tavily.
-    """
-    api_key = os.getenv("TAVILY_API_KEY")
+    api_key = get_secret("TAVILY_API_KEY")
 
     if not api_key:
         return []
