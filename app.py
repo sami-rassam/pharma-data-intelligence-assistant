@@ -2,19 +2,6 @@ import time
 import streamlit as st
 import pandas as pd
 
-@st.cache_resource
-def build_cached_vectorstore(folders_to_use):
-    all_chunks = []
-
-    for folder in folders_to_use:
-        chunks = load_and_split_documents(folder)
-        all_chunks.extend(chunks)
-
-    if not all_chunks:
-        return None
-
-    return create_vectorstore(all_chunks)
-
 from src.utils import save_uploaded_files
 from src.document_loader import load_and_split_documents
 from src.vectorstore import create_vectorstore, similarity_search
@@ -36,11 +23,20 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("💊 Pharma & Data Intelligence Assistant")
-st.write(
-    "An agentic RAG research assistant for pharmaceutical, regulatory, "
-    "data quality, and analytics intelligence."
-)
+
+@st.cache_resource
+def build_cached_vectorstore(folders_to_use):
+    all_chunks = []
+
+    for folder in folders_to_use:
+        chunks = load_and_split_documents(folder)
+        all_chunks.extend(chunks)
+
+    if not all_chunks:
+        return None
+
+    return create_vectorstore(all_chunks)
+
 
 if "metrics" not in st.session_state:
     st.session_state.metrics = []
@@ -48,6 +44,13 @@ if "metrics" not in st.session_state:
 if "last_report" not in st.session_state:
     st.session_state.last_report = None
 
+if "query" not in st.session_state:
+    st.session_state.query = ""
+
+
+# -----------------------------
+# Sidebar
+# -----------------------------
 
 with st.sidebar:
     st.header("Settings")
@@ -77,32 +80,94 @@ with st.sidebar:
     k_value = st.slider("Number of local chunks to retrieve", 1, 10, 5)
     max_web_results = st.slider("Number of web results", 1, 10, 5)
 
+    st.markdown("---")
+    st.info(
+        "Developed by Sami Rassam\n\n"
+        "Aspiring Data Analyst | AI & Data Science Portfolio Project"
+    )
+
+
+# -----------------------------
+# Main App Header
+# -----------------------------
+
+st.title("💊 Pharma & Data Intelligence Assistant")
+
+st.write(
+    "An agentic RAG research assistant for pharmaceutical, regulatory, "
+    "data quality, and analytics intelligence."
+)
+
+
+# -----------------------------
+# Example Prompt Buttons
+# -----------------------------
+
+st.subheader("Suggested Example Questions")
+
+col1, col2 = st.columns(2)
+
+if col1.button("🧪 Data Integrity Assessment"):
+    st.session_state.query = (
+        "What are the main data integrity risks in pharmaceutical reporting dashboards?"
+    )
+
+if col2.button("📋 SOP Gap Analysis"):
+    st.session_state.query = (
+        "Review this SOP and identify potential GMP, compliance, or data governance gaps."
+    )
+
+col3, col4 = st.columns(2)
+
+if col3.button("⚠️ Root Cause Investigation"):
+    st.session_state.query = (
+        "What possible root causes could explain recurring data quality issues in a GMP environment?"
+    )
+
+if col4.button("📊 Dashboard KPI Review"):
+    st.session_state.query = (
+        "What KPIs should be monitored in a pharmaceutical quality dashboard?"
+    )
+
+
+# -----------------------------
+# Query Input
+# -----------------------------
 
 st.subheader("Ask a research question")
 
 query = st.text_area(
-    "Example: What are the main data integrity risks in pharmaceutical reporting dashboards?",
-    height=100
+    "Enter your question below:",
+    value=st.session_state.query,
+    height=120,
+    placeholder="Example: What are the main data integrity risks in pharmaceutical reporting dashboards?"
 )
 
 run_button = st.button("Run Intelligence Workflow")
 
+
+# -----------------------------
+# Workflow
+# -----------------------------
 
 if run_button:
     if not query.strip():
         st.warning("Please enter a question.")
     else:
         start_time = time.time()
+        workflow_steps = []
 
         with st.spinner("Running research workflow..."):
             folders_to_use = []
 
             if use_sample_docs:
                 folders_to_use.append("data/sample_docs")
+                workflow_steps.append("✓ Sample documents selected")
 
             if uploaded_files and use_uploaded_docs:
                 uploaded_folder = save_uploaded_files(uploaded_files)
                 folders_to_use.append(uploaded_folder)
+                workflow_steps.append("✓ Uploaded documents saved")
 
             local_docs = []
 
@@ -111,17 +176,27 @@ if run_button:
 
                 if vectorstore:
                     local_docs = similarity_search(vectorstore, query, k=k_value)
+                    workflow_steps.append("✓ Local document retrieval completed")
+                else:
+                    workflow_steps.append("⚠ No local documents available")
 
             except Exception as error:
                 st.error(f"Error building vectorstore: {error}")
+                workflow_steps.append("✗ Vectorstore build failed")
 
             web_results = []
 
             if use_web:
                 web_results = tavily_search(query, max_results=max_web_results)
+                workflow_steps.append("✓ Tavily web search completed")
+            else:
+                workflow_steps.append("⚠ Tavily web search skipped")
 
             research_summary = researcher_agent(query, local_docs, web_results)
+            workflow_steps.append("✓ Research agent completed")
+
             confidence_report = evidence_checker_agent(local_docs, web_results)
+            workflow_steps.append("✓ Evidence checker completed")
 
             initial_answer = generate_answer(
                 query=query,
@@ -131,13 +206,17 @@ if run_button:
             )
 
             answer = initial_answer["answer"]
+            workflow_steps.append("✓ LLM answer generated")
 
             if use_critic:
                 critique = critic_agent(answer)
                 final_answer = final_writer_agent(answer, confidence_report, critique)
+                workflow_steps.append("✓ Critic agent reviewed answer")
+                workflow_steps.append("✓ Final writer agent produced final response")
             else:
                 critique = "Critic agent was not used."
                 final_answer = answer
+                workflow_steps.append("⚠ Critic agent skipped")
 
             end_time = time.time()
 
@@ -151,6 +230,7 @@ if run_button:
 
             metrics["retrieval_quality"] = retrieval_quality_label(local_docs, web_results)
             metrics["confidence"] = confidence_report["confidence"]
+            metrics["answer_words"] = len(final_answer.split())
 
             st.session_state.metrics.append(metrics)
 
@@ -167,18 +247,79 @@ if run_button:
 
         st.success("Research workflow complete.")
 
-        col1, col2, col3, col4 = st.columns(4)
+        # -----------------------------
+        # KPI Metrics
+        # -----------------------------
 
-        col1.metric("Local chunks", len(local_docs))
-        col2.metric("Web sources", len(web_results))
+        st.subheader("Evaluation Metrics")
+
+        col1, col2, col3, col4, col5 = st.columns(5)
+
+        col1.metric("Local Chunks", len(local_docs))
+        col2.metric("Web Sources", len(web_results))
         col3.metric("Confidence", confidence_report["confidence"])
-        col4.metric("Time", f"{metrics['response_time_seconds']}s")
+        col4.metric("Answer Words", len(final_answer.split()))
+        col5.metric("Time", f"{metrics['response_time_seconds']}s")
+
+        metrics_chart_df = pd.DataFrame({
+            "Source Type": ["Local Documents", "Web Results"],
+            "Count": [len(local_docs), len(web_results)]
+        })
+
+        st.bar_chart(metrics_chart_df.set_index("Source Type"))
+
+        # -----------------------------
+        # Final Answer
+        # -----------------------------
 
         st.subheader("Final Answer")
         st.markdown(final_answer)
 
+        # -----------------------------
+        # Workflow Visibility
+        # -----------------------------
+
+        st.subheader("Workflow Executed")
+
+        for step in workflow_steps:
+            st.write(step)
+
+        # -----------------------------
+        # Confidence Assessment
+        # -----------------------------
+
         st.subheader("Confidence Assessment")
         st.info(confidence_report["confidence_explanation"])
+
+        # -----------------------------
+        # Source Transparency
+        # -----------------------------
+
+        st.subheader("Sources Used")
+
+        if local_docs:
+            st.markdown("### Local Document Sources")
+            for i, doc in enumerate(local_docs, start=1):
+                source = doc.metadata.get("source", "Unknown source")
+                st.write(f"📄 Local Source {i}: {source}")
+        else:
+            st.write("No local document sources used.")
+
+        if web_results:
+            st.markdown("### Web Sources")
+            for i, result in enumerate(web_results, start=1):
+                title = result.get("title", "Untitled")
+                url = result.get("url", "")
+                if url:
+                    st.markdown(f"🌐 Web Source {i}: [{title}]({url})")
+                else:
+                    st.write(f"🌐 Web Source {i}: {title}")
+        else:
+            st.write("No web sources used.")
+
+        # -----------------------------
+        # Expanders
+        # -----------------------------
 
         with st.expander("Research Agent Summary"):
             st.json({
@@ -191,16 +332,26 @@ if run_button:
             st.write(critique)
 
         with st.expander("Local Sources Retrieved"):
-            for i, doc in enumerate(local_docs, start=1):
-                st.markdown(f"### Local Source {i}")
-                st.write(doc.metadata)
-                st.write(doc.page_content[:1000])
+            if local_docs:
+                for i, doc in enumerate(local_docs, start=1):
+                    st.markdown(f"### Local Source {i}")
+                    st.write(doc.metadata)
+                    st.write(doc.page_content[:1000])
+            else:
+                st.write("No local sources retrieved.")
 
         with st.expander("Web Sources Retrieved"):
-            for i, result in enumerate(web_results, start=1):
-                st.markdown(f"### Web Source {i}: {result.get('title', 'Untitled')}")
-                st.write(result.get("url", "No URL"))
-                st.write(result.get("content", ""))
+            if web_results:
+                for i, result in enumerate(web_results, start=1):
+                    st.markdown(f"### Web Source {i}: {result.get('title', 'Untitled')}")
+                    st.write(result.get("url", "No URL"))
+                    st.write(result.get("content", ""))
+            else:
+                st.write("No web sources retrieved.")
+
+        # -----------------------------
+        # Download Report
+        # -----------------------------
 
         st.download_button(
             label="Download Markdown Report",
@@ -210,27 +361,34 @@ if run_button:
         )
 
 
+# -----------------------------
+# Evaluation Dashboard
+# -----------------------------
+
 st.divider()
 
 st.subheader("Evaluation Dashboard")
 
 if st.session_state.metrics:
     metrics_df = pd.DataFrame(st.session_state.metrics)
+
     st.dataframe(metrics_df)
 
-    st.bar_chart(metrics_df[["local_chunks_retrieved", "web_results_retrieved"]])
+    if {
+        "local_chunks_retrieved",
+        "web_results_retrieved"
+    }.issubset(metrics_df.columns):
+        st.bar_chart(metrics_df[["local_chunks_retrieved", "web_results_retrieved"]])
 else:
     st.write("No evaluation data yet. Run a query to generate metrics.")
 
 
+# -----------------------------
+# Project Footer
+# -----------------------------
+
 st.divider()
 
-st.subheader("Suggested Example Questions")
-
-st.markdown("""
-- What are the main data integrity risks in pharmaceutical reporting?
-- How can Power BI dashboards support GMP deviation monitoring?
-- What are the benefits of RAG for regulated knowledge management?
-- How should a pharmaceutical company validate analytics dashboards?
-- Compare local document evidence with live web evidence on AI governance.
-""")
+st.caption(
+    "Developed by Sami Rassam | Python | Streamlit | LangChain | RAG | Tavily | Groq"
+)
