@@ -4,7 +4,11 @@ import pandas as pd
 
 from src.utils import save_uploaded_files
 from src.document_loader import load_and_split_documents
-from src.vectorstore import create_vectorstore, similarity_search
+from src.vectorstore import (
+    create_vectorstore,
+    get_or_create_vectorstore,
+    similarity_search
+)
 from src.web_search import tavily_search
 from src.rag_pipeline import generate_answer
 from src.agents import (
@@ -13,8 +17,17 @@ from src.agents import (
     critic_agent,
     final_writer_agent
 )
-from src.evaluation import calculate_basic_metrics, retrieval_quality_label
-from src.reporting import create_markdown_report, save_report
+from src.evaluation import (
+    calculate_basic_metrics,
+    retrieval_quality_label,
+    calculate_automated_scores
+)
+from src.reporting import (
+    create_markdown_report,
+    save_report,
+    save_pdf_report
+)
+from src.source_reliability import add_reliability_scores
 
 
 st.set_page_config(
@@ -24,25 +37,42 @@ st.set_page_config(
 )
 
 
+# -----------------------------
+# Cached Vectorstore Builders
+# -----------------------------
+
 @st.cache_resource
-def build_cached_vectorstore(folders_to_use):
-    all_chunks = []
+def build_sample_vectorstore():
+    chunks = load_and_split_documents("data/sample_docs")
 
-    for folder in folders_to_use:
-        chunks = load_and_split_documents(folder)
-        all_chunks.extend(chunks)
-
-    if not all_chunks:
+    if not chunks:
         return None
 
-    return create_vectorstore(all_chunks)
+    return get_or_create_vectorstore(chunks)
 
+
+def build_uploaded_vectorstore(uploaded_files):
+    uploaded_folder = save_uploaded_files(uploaded_files)
+    chunks = load_and_split_documents(uploaded_folder)
+
+    if not chunks:
+        return None
+
+    return create_vectorstore(chunks)
+
+
+# -----------------------------
+# Session State
+# -----------------------------
 
 if "metrics" not in st.session_state:
     st.session_state.metrics = []
 
 if "last_report" not in st.session_state:
     st.session_state.last_report = None
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
 if "query" not in st.session_state:
     st.session_state.query = ""
@@ -63,23 +93,33 @@ with st.sidebar:
 
     use_sample_docs = st.checkbox("Use sample documents", value=True)
     use_uploaded_docs = st.checkbox("Use uploaded documents", value=True)
-    use_web = st.checkbox("Use live Tavily web search", value=True)
-    use_critic = st.checkbox("Use critic agent", value=True)
+
+    use_web = st.checkbox(
+        "Use live Tavily web search",
+        value=False,
+        help="Turn this on when you need current external information."
+    )
+
+    use_critic = st.checkbox(
+        "Use critic agent",
+        value=False,
+        help="Adds an extra LLM review step, but may slow the app down."
+    )
 
     answer_style = st.selectbox(
-    "Answer style",
-    [
-        "Detailed report",
-        "Executive summary",
-        "Bullet point summary",
-        "Simplified non-technical explanation",
-        "Interview-style explanation",
-        "Technical analysis"
-    ]
-)
+        "Answer style",
+        [
+            "Detailed report",
+            "Executive summary",
+            "Bullet point summary",
+            "Simplified non-technical explanation",
+            "Interview-style explanation",
+            "Technical analysis"
+        ]
+    )
 
-    k_value = st.slider("Number of local chunks to retrieve", 1, 10, 5)
-    max_web_results = st.slider("Number of web results", 1, 10, 5)
+    k_value = st.slider("Number of local chunks to retrieve", 1, 10, 3)
+    max_web_results = st.slider("Number of web results", 1, 10, 3)
 
     st.markdown("---")
     st.info(
@@ -101,8 +141,30 @@ st.write(
 
 
 # -----------------------------
+# Chat History
+# -----------------------------
+
+st.divider()
+
+st.subheader("Chat History")
+
+if st.session_state.chat_history:
+    for i, item in enumerate(reversed(st.session_state.chat_history), start=1):
+        with st.expander(f"Question {i}: {item['question']}"):
+            st.write(f"Confidence: {item['confidence']}")
+            st.write(f"Local sources used: {item['local_sources']}")
+            st.write(f"Web sources used: {item['web_sources']}")
+            st.write(f"Quality score: {item.get('quality_score', 'N/A')}%")
+            st.markdown(item["answer"])
+else:
+    st.write("No chat history yet.")
+
+
+# -----------------------------
 # Example Prompt Buttons
 # -----------------------------
+
+st.divider()
 
 st.subheader("Suggested Example Questions")
 
@@ -135,6 +197,8 @@ if col4.button("📊 Dashboard KPI Review"):
 # Query Input
 # -----------------------------
 
+st.divider()
+
 st.subheader("Ask a research question")
 
 query = st.text_area(
@@ -148,7 +212,7 @@ run_button = st.button("Run Intelligence Workflow")
 
 
 # -----------------------------
-# Workflow
+# Main Workflow
 # -----------------------------
 
 if run_button:
@@ -158,40 +222,81 @@ if run_button:
         start_time = time.time()
         workflow_steps = []
 
+        local_docs = []
+        web_results = []
+        critique = "Critic agent was not used."
+        final_answer = ""
+        confidence_report = {}
+
         with st.spinner("Running research workflow..."):
-            folders_to_use = []
+
+            # -----------------------------
+            # Local RAG Retrieval
+            # -----------------------------
+
+            vectorstores = []
 
             if use_sample_docs:
-                folders_to_use.append("data/sample_docs")
-                workflow_steps.append("✓ Sample documents selected")
+                try:
+                    sample_vectorstore = build_sample_vectorstore()
+
+                    if sample_vectorstore:
+                        vectorstores.append(sample_vectorstore)
+                        workflow_steps.append("✓ Sample document vectorstore loaded")
+                    else:
+                        workflow_steps.append("⚠ No sample documents available")
+
+                except Exception as error:
+                    st.error(f"Error loading sample documents: {error}")
+                    workflow_steps.append("✗ Sample document vectorstore failed")
 
             if uploaded_files and use_uploaded_docs:
-                uploaded_folder = save_uploaded_files(uploaded_files)
-                folders_to_use.append(uploaded_folder)
-                workflow_steps.append("✓ Uploaded documents saved")
+                try:
+                    uploaded_vectorstore = build_uploaded_vectorstore(uploaded_files)
 
-            local_docs = []
+                    if uploaded_vectorstore:
+                        vectorstores.append(uploaded_vectorstore)
+                        workflow_steps.append("✓ Uploaded document vectorstore created")
+                    else:
+                        workflow_steps.append("⚠ No uploaded document chunks available")
 
-            try:
-                vectorstore = build_cached_vectorstore(tuple(folders_to_use))
+                except Exception as error:
+                    st.error(f"Error loading uploaded documents: {error}")
+                    workflow_steps.append("✗ Uploaded document vectorstore failed")
 
-                if vectorstore:
-                    local_docs = similarity_search(vectorstore, query, k=k_value)
-                    workflow_steps.append("✓ Local document retrieval completed")
-                else:
-                    workflow_steps.append("⚠ No local documents available")
+            for vectorstore in vectorstores:
+                try:
+                    docs = similarity_search(vectorstore, query, k=k_value)
+                    local_docs.extend(docs)
+                except Exception as error:
+                    st.error(f"Error searching vectorstore: {error}")
 
-            except Exception as error:
-                st.error(f"Error building vectorstore: {error}")
-                workflow_steps.append("✗ Vectorstore build failed")
+            if local_docs:
+                workflow_steps.append("✓ Local document retrieval completed")
+            else:
+                workflow_steps.append("⚠ No local document sources retrieved")
 
-            web_results = []
+            # -----------------------------
+            # Tavily Web Search
+            # -----------------------------
 
             if use_web:
-                web_results = tavily_search(query, max_results=max_web_results)
-                workflow_steps.append("✓ Tavily web search completed")
+                try:
+                    web_results = tavily_search(query, max_results=max_web_results)
+                    web_results = add_reliability_scores(web_results)
+                    workflow_steps.append("✓ Tavily web search completed")
+                    workflow_steps.append("✓ Source reliability scoring completed")
+
+                except Exception as error:
+                    st.error(f"Error running Tavily web search: {error}")
+                    web_results = []
+                    workflow_steps.append("✗ Tavily web search failed")
             else:
                 workflow_steps.append("⚠ Tavily web search skipped")
+
+            # -----------------------------
+            # Agent Workflow
+            # -----------------------------
 
             research_summary = researcher_agent(query, local_docs, web_results)
             workflow_steps.append("✓ Research agent completed")
@@ -211,15 +316,22 @@ if run_button:
 
             if use_critic:
                 critique = critic_agent(answer)
-                final_answer = final_writer_agent(answer, confidence_report, critique)
+                final_answer = final_writer_agent(
+                    answer,
+                    confidence_report,
+                    critique
+                )
                 workflow_steps.append("✓ Critic agent reviewed answer")
                 workflow_steps.append("✓ Final writer agent produced final response")
             else:
-                critique = "Critic agent was not used."
                 final_answer = answer
                 workflow_steps.append("⚠ Critic agent skipped")
 
             end_time = time.time()
+
+            # -----------------------------
+            # Evaluation Metrics
+            # -----------------------------
 
             metrics = calculate_basic_metrics(
                 query=query,
@@ -229,11 +341,27 @@ if run_button:
                 end_time=end_time
             )
 
-            metrics["retrieval_quality"] = retrieval_quality_label(local_docs, web_results)
+            metrics["retrieval_quality"] = retrieval_quality_label(
+                local_docs,
+                web_results
+            )
+
             metrics["confidence"] = confidence_report["confidence"]
             metrics["answer_words"] = len(final_answer.split())
 
+            automated_scores = calculate_automated_scores(
+                local_docs=local_docs,
+                web_results=web_results,
+                confidence=confidence_report["confidence"],
+                answer=final_answer
+            )
+
+            metrics.update(automated_scores)
             st.session_state.metrics.append(metrics)
+
+            # -----------------------------
+            # Reports
+            # -----------------------------
 
             report = create_markdown_report(
                 query=query,
@@ -244,7 +372,22 @@ if run_button:
             )
 
             report_path = save_report(report)
+            pdf_report_path = save_pdf_report(report)
+
             st.session_state.last_report = report
+
+            # -----------------------------
+            # Chat History Update
+            # -----------------------------
+
+            st.session_state.chat_history.append({
+                "question": query,
+                "answer": final_answer,
+                "confidence": confidence_report["confidence"],
+                "local_sources": len(local_docs),
+                "web_sources": len(web_results),
+                "quality_score": automated_scores["overall_answer_quality_score"]
+            })
 
         st.success("Research workflow complete.")
 
@@ -254,13 +397,17 @@ if run_button:
 
         st.subheader("Evaluation Metrics")
 
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
 
         col1.metric("Local Chunks", len(local_docs))
         col2.metric("Web Sources", len(web_results))
         col3.metric("Confidence", confidence_report["confidence"])
         col4.metric("Answer Words", len(final_answer.split()))
         col5.metric("Time", f"{metrics['response_time_seconds']}s")
+        col6.metric(
+            "Quality Score",
+            f"{automated_scores['overall_answer_quality_score']}%"
+        )
 
         metrics_chart_df = pd.DataFrame({
             "Source Type": ["Local Documents", "Web Results"],
@@ -311,10 +458,20 @@ if run_button:
             for i, result in enumerate(web_results, start=1):
                 title = result.get("title", "Untitled")
                 url = result.get("url", "")
+
+                reliability_label = result.get("reliability_label", "Not scored")
+                reliability_score = result.get("reliability_score", "N/A")
+
                 if url:
-                    st.markdown(f"🌐 Web Source {i}: [{title}]({url})")
+                    st.markdown(
+                        f"🌐 Web Source {i}: [{title}]({url}) "
+                        f"— Reliability: {reliability_label} ({reliability_score}/5)"
+                    )
                 else:
-                    st.write(f"🌐 Web Source {i}: {title}")
+                    st.write(
+                        f"🌐 Web Source {i}: {title} "
+                        f"— Reliability: {reliability_label} ({reliability_score}/5)"
+                    )
         else:
             st.write("No web sources used.")
 
@@ -332,6 +489,9 @@ if run_button:
         with st.expander("Critic Agent Review"):
             st.write(critique)
 
+        with st.expander("Automated Evaluation Scores"):
+            st.json(automated_scores)
+
         with st.expander("Local Sources Retrieved"):
             if local_docs:
                 for i, doc in enumerate(local_docs, start=1):
@@ -344,15 +504,34 @@ if run_button:
         with st.expander("Web Sources Retrieved"):
             if web_results:
                 for i, result in enumerate(web_results, start=1):
-                    st.markdown(f"### Web Source {i}: {result.get('title', 'Untitled')}")
+                    st.markdown(
+                        f"### Web Source {i}: {result.get('title', 'Untitled')}"
+                    )
+
                     st.write(result.get("url", "No URL"))
+
+                    st.write(
+                        f"Reliability: "
+                        f"{result.get('reliability_label', 'Not scored')} "
+                        f"({result.get('reliability_score', 'N/A')}/5)"
+                    )
+
+                    st.caption(
+                        result.get(
+                            "reliability_reason",
+                            "No reliability reason available."
+                        )
+                    )
+
                     st.write(result.get("content", ""))
             else:
                 st.write("No web sources retrieved.")
 
         # -----------------------------
-        # Download Report
+        # Download Reports
         # -----------------------------
+
+        st.subheader("Download Reports")
 
         st.download_button(
             label="Download Markdown Report",
@@ -360,6 +539,14 @@ if run_button:
             file_name="pharma_data_intelligence_report.md",
             mime="text/markdown"
         )
+
+        with open(pdf_report_path, "rb") as pdf_file:
+            st.download_button(
+                label="Download PDF Report",
+                data=pdf_file,
+                file_name="pharma_data_intelligence_report.pdf",
+                mime="application/pdf"
+            )
 
 
 # -----------------------------
@@ -375,11 +562,18 @@ if st.session_state.metrics:
 
     st.dataframe(metrics_df)
 
-    if {
+    chart_columns = [
         "local_chunks_retrieved",
-        "web_results_retrieved"
-    }.issubset(metrics_df.columns):
-        st.bar_chart(metrics_df[["local_chunks_retrieved", "web_results_retrieved"]])
+        "web_results_retrieved",
+        "overall_answer_quality_score"
+    ]
+
+    available_chart_columns = [
+        column for column in chart_columns if column in metrics_df.columns
+    ]
+
+    if available_chart_columns:
+        st.bar_chart(metrics_df[available_chart_columns])
 else:
     st.write("No evaluation data yet. Run a query to generate metrics.")
 

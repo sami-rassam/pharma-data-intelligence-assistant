@@ -1,3 +1,6 @@
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
 from datetime import datetime
 from pathlib import Path
 
@@ -69,5 +72,35 @@ def save_report(report: str, folder: str = "reports") -> str:
 
     with open(path, "w", encoding="utf-8") as file:
         file.write(report)
+
+    return str(path)
+
+def save_pdf_report(report_text: str, folder: str = "reports") -> str:
+    """
+    Saves the report as a PDF file.
+    """
+    Path(folder).mkdir(exist_ok=True)
+
+    filename = f"pharma_data_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    path = Path(folder) / filename
+
+    doc = SimpleDocTemplate(str(path), pagesize=A4)
+    styles = getSampleStyleSheet()
+    story = []
+
+    for line in report_text.split("\n"):
+        if line.startswith("# "):
+            story.append(Paragraph(line.replace("# ", ""), styles["Title"]))
+        elif line.startswith("## "):
+            story.append(Paragraph(line.replace("## ", ""), styles["Heading2"]))
+        elif line.startswith("### "):
+            story.append(Paragraph(line.replace("### ", ""), styles["Heading3"]))
+        elif line.strip() == "":
+            story.append(Spacer(1, 12))
+        else:
+            clean_line = line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+            story.append(Paragraph(clean_line, styles["BodyText"]))
+
+    doc.build(story)
 
     return str(path)
