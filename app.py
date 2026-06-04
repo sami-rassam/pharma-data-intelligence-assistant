@@ -67,15 +67,16 @@ with st.sidebar:
     use_critic = st.checkbox("Use critic agent", value=True)
 
     answer_style = st.selectbox(
-        "Answer style",
-        [
-            "Detailed report",
-            "Executive summary",
-            "Bullet point summary",
-            "Interview-style explanation",
-            "Technical analysis"
-        ]
-    )
+    "Answer style",
+    [
+        "Detailed report",
+        "Executive summary",
+        "Bullet point summary",
+        "Simplified non-technical explanation",
+        "Interview-style explanation",
+        "Technical analysis"
+    ]
+)
 
     k_value = st.slider("Number of local chunks to retrieve", 1, 10, 5)
     max_web_results = st.slider("Number of web results", 1, 10, 5)
